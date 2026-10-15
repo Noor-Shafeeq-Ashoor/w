@@ -14,11 +14,13 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     List<Booking> findByStudySpace(StudySpace studySpace);
 
-    boolean existsByStudySpaceAndStatusAndStartTimeLessThanAndEndTimeGreaterThan(
+
+    boolean existsByStudySpaceAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
             StudySpace studySpace,
-            BookingStatus status,
-            LocalDateTime endTime,
-            LocalDateTime startTime
+            List<BookingStatus> statuses,
+            LocalDateTime requestedEndTime,
+            LocalDateTime requestedStartTime
     );
+
     List<Booking> findByStudySpace_Cafe_Manager_Username(String username);
 }

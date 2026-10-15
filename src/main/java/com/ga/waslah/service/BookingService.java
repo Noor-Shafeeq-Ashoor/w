@@ -12,6 +12,7 @@ import com.ga.waslah.repository.BookingRepository;
 import com.ga.waslah.repository.StudySpaceRepository;
 import com.ga.waslah.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,28 +38,27 @@ public class BookingService {
     // CREATE BOOKING
     // =========================
 
+
+    @Transactional
     public BookingResponse createBooking(
             String username,
             BookingRequest request
     ) {
-
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("User not found"));
 
-        StudySpace studySpace = studySpaceRepository.findById(
-                request.getStudySpaceId()
-        ).orElseThrow(() ->
-                new ResourceNotFoundException("Study space not found"));
+        StudySpace studySpace = studySpaceRepository
+                .findByIdForUpdate(request.getStudySpaceId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Study space not found"));
 
-        // The end time must be after the start time.
         if (!request.getEndTime().isAfter(request.getStartTime())) {
             throw new IllegalArgumentException(
                     "End time must be after start time"
             );
         }
 
-        // The study space must currently be available for booking.
         if (!studySpace.getAvailable()) {
             throw new ForbiddenException(
                     "This study space is not available"
@@ -67,20 +67,15 @@ public class BookingService {
 
         boolean alreadyBooked =
                 bookingRepository
-                        .existsByStudySpaceAndStatusAndStartTimeLessThanAndEndTimeGreaterThan(
+                        .existsByStudySpaceAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
                                 studySpace,
-                                BookingStatus.PENDING,
+                                List.of(
+                                        BookingStatus.PENDING,
+                                        BookingStatus.CONFIRMED
+                                ),
                                 request.getEndTime(),
                                 request.getStartTime()
-                        )
-                        ||
-                        bookingRepository
-                                .existsByStudySpaceAndStatusAndStartTimeLessThanAndEndTimeGreaterThan(
-                                        studySpace,
-                                        BookingStatus.CONFIRMED,
-                                        request.getEndTime(),
-                                        request.getStartTime()
-                                );
+                        );
 
         if (alreadyBooked) {
             throw new IllegalArgumentException(
@@ -89,17 +84,15 @@ public class BookingService {
         }
 
         Booking booking = new Booking();
-
         booking.setUser(user);
         booking.setStudySpace(studySpace);
         booking.setStartTime(request.getStartTime());
         booking.setEndTime(request.getEndTime());
         booking.setStatus(BookingStatus.PENDING);
 
-        return toResponse(
-                bookingRepository.save(booking)
-        );
+        return toResponse(bookingRepository.save(booking));
     }
+
 
     // =========================
     // GET MY BOOKINGS
