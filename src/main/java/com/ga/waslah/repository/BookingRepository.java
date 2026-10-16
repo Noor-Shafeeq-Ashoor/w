@@ -33,13 +33,7 @@ public interface BookingRepository extends
     /**
      * Checks whether a booking overlaps an existing booking for the same
      * study space and one of the specified statuses.
-     *
-     * @param studySpace the study space being requested
-     * @param statuses the booking statuses that count as conflicts
-     * @param requestedEndTime the end time of the requested booking
-     * @param requestedStartTime the start time of the requested booking
-     * @return true if an overlapping booking exists; otherwise false
-     */
+   */
     boolean existsByStudySpaceAndStatusInAndStartTimeLessThanAndEndTimeGreaterThan(
             StudySpace studySpace,
             List<BookingStatus> statuses,
@@ -54,4 +48,9 @@ public interface BookingRepository extends
      * @return bookings associated with cafes managed by that user
      */
     List<Booking> findByStudySpace_Cafe_Manager_Username(String username);
+
+    List<Booking> findByStatusAndEndTimeLessThan(
+            BookingStatus status,
+            LocalDateTime endTime
+    );
 }
