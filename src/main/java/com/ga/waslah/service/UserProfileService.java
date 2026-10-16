@@ -14,13 +14,16 @@ public class UserProfileService {
 
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
+    private final ProfileImageStorageService profileImageStorageService;
 
     public UserProfileService(
             UserRepository userRepository,
-            UserProfileRepository userProfileRepository
+            UserProfileRepository userProfileRepository,
+            ProfileImageStorageService profileImageStorageService
     ) {
         this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
+        this.profileImageStorageService = profileImageStorageService;
     }
 
     public UserProfile getProfile(String username) {
@@ -63,14 +66,15 @@ public class UserProfileService {
         return user.getUserProfile();
     }
 
+
     public UserProfile updateProfileImage(
             String username,
             MultipartFile image
     ) {
-
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found"));
+                        new ResourceNotFoundException("User not found")
+                );
 
         UserProfile profile = user.getUserProfile();
 
@@ -78,8 +82,14 @@ public class UserProfileService {
             throw new ResourceNotFoundException("Profile not found");
         }
 
-        profile.setProfileImage(image.getOriginalFilename());
+        // Store the image and receive its generated UUID filename.
+        String storedFilename =
+                profileImageStorageService.storeImage(image);
+
+        // Save the generated filename, never the original filename.
+        profile.setProfileImage(storedFilename);
 
         return userProfileRepository.save(profile);
     }
+
 }
