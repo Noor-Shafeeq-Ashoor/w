@@ -27,15 +27,18 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailVerificationService emailVerificationService;
+    private final AuditService auditService;
 
     public UserService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            EmailVerificationService emailVerificationService
+            EmailVerificationService emailVerificationService,
+            AuditService auditService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailVerificationService = emailVerificationService;
+        this.auditService = auditService;
     }
 
     /**
@@ -113,6 +116,12 @@ public class UserService {
 
         user.setStatus(UserStatus.INACTIVE);
         userRepository.save(user);
+        auditService.log(
+                performedBy,
+                "USER_DEACTIVATED",
+                "USER",
+                user.getId()
+        );
 
         // Record both the administrator and the account affected.
         log.info(

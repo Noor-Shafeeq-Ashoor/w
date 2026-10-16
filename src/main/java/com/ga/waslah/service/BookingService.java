@@ -35,15 +35,18 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final StudySpaceRepository studySpaceRepository;
     private final UserRepository userRepository;
+    private final AuditService auditService;
 
     public BookingService(
             BookingRepository bookingRepository,
             StudySpaceRepository studySpaceRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            AuditService auditService
     ) {
         this.bookingRepository = bookingRepository;
         this.studySpaceRepository = studySpaceRepository;
         this.userRepository = userRepository;
+        this.auditService = auditService;
     }
 
 
@@ -247,6 +250,13 @@ public class BookingService {
 
         Booking savedBooking = bookingRepository.save(booking);
 
+        auditService.log(
+                username,
+                "BOOKING_CREATED",
+                "BOOKING",
+                savedBooking.getId()
+        );
+
         log.info("Booking created successfully with id={}", savedBooking.getId());
 
         return toResponse(savedBooking);
@@ -330,6 +340,13 @@ public class BookingService {
         booking.setStatus(BookingStatus.CANCELLED);
 
         Booking savedBooking = bookingRepository.save(booking);
+
+        auditService.log(
+                username,
+                "BOOKING_CANCELLED",
+                "BOOKING",
+                savedBooking.getId()
+        );
 
         log.info("Booking cancelled successfully with id={}", id);
 

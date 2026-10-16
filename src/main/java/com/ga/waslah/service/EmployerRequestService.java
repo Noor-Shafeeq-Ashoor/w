@@ -31,6 +31,7 @@ public class EmployerRequestService {
 
     private final EmployerRequestRepository employerRequestRepository;
     private final UserRepository userRepository;
+    private final AuditService auditService;
 
     /**
      * Submits an employer request for an existing user.
@@ -162,7 +163,10 @@ public class EmployerRequestService {
      * @throws ConflictException if the request has already been processed
      */
     @Transactional
-    public EmployerRequest approveRequest(Long requestId) {
+    public EmployerRequest approveRequest(
+            Long requestId,
+            String adminUsername
+    ) {
 
         EmployerRequest request =
                 employerRequestRepository.findById(requestId)
@@ -191,6 +195,13 @@ public class EmployerRequestService {
         EmployerRequest approvedRequest =
                 employerRequestRepository.save(request);
 
+        auditService.log(
+                approvedRequest.getUser().getUsername(),
+                "EMPLOYER_REQUEST_APPROVED",
+                "EMPLOYER_REQUEST",
+                approvedRequest.getId()
+        );
+
         log.info("Employer request approved successfully with id={}",
                 requestId);
 
@@ -206,7 +217,10 @@ public class EmployerRequestService {
      * @throws ConflictException if the request has already been processed
      */
     @Transactional
-    public EmployerRequest rejectRequest(Long requestId) {
+    public EmployerRequest rejectRequest(
+            Long requestId,
+            String adminUsername
+    ) {
 
         EmployerRequest request =
                 employerRequestRepository.findById(requestId)
@@ -228,6 +242,13 @@ public class EmployerRequestService {
 
         EmployerRequest rejectedRequest =
                 employerRequestRepository.save(request);
+
+        auditService.log(
+                rejectedRequest.getUser().getUsername(),
+                "EMPLOYER_REQUEST_REJECTED",
+                "EMPLOYER_REQUEST",
+                rejectedRequest.getId()
+        );
 
         log.info("Employer request rejected successfully with id={}",
                 requestId);

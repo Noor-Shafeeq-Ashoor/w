@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 
@@ -33,22 +34,28 @@ public class AdminEmployerRequestController {
 
     @PutMapping("/{id}/approve")
     public ResponseEntity<EmployerRequestResponse> approveRequest(
-            @PathVariable Long id
+            @PathVariable Long id,
+            Authentication authentication
     ) {
-
         EmployerRequest request =
-                employerRequestService.approveRequest(id);
+                employerRequestService.approveRequest(
+                        id,
+                        authentication.getName()
+                );
 
         return ResponseEntity.ok(toDTO(request));
     }
 
     @PutMapping("/{id}/reject")
     public ResponseEntity<EmployerRequestResponse> rejectRequest(
-            @PathVariable Long id
+            @PathVariable Long id,
+            Authentication authentication
     ) {
-
         EmployerRequest request =
-                employerRequestService.rejectRequest(id);
+                employerRequestService.rejectRequest(
+                        id,
+                        authentication.getName()
+                );
 
         return ResponseEntity.ok(toDTO(request));
     }
