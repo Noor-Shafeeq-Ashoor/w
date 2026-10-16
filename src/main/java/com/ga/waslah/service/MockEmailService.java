@@ -1,7 +1,10 @@
+
 package com.ga.waslah.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 public class MockEmailService {
 
@@ -9,32 +12,21 @@ public class MockEmailService {
             String email,
             String verificationLink
     ) {
-
-        System.out.println();
-        System.out.println("========================================");
-        System.out.println("       WASLAH EMAIL VERIFICATION");
-        System.out.println("========================================");
-        System.out.println("To: " + email);
-        System.out.println();
-        System.out.println("Please verify your WASLAH account:");
-        System.out.println();
-        System.out.println(verificationLink);
-        System.out.println();
-        System.out.println("========================================");
-        System.out.println();
+        log.info(
+                "MOCK EMAIL [verification] to={} link={}",
+                email,
+                verificationLink
+        );
     }
 
     public void sendPasswordResetEmail(
             String email,
             String resetLink
     ) {
-
-        System.out.println("========== PASSWORD RESET EMAIL ==========");
-        System.out.println("To: " + email);
-        System.out.println("Reset your password using this link:");
-        System.out.println(resetLink);
-        System.out.println("This link will expire in 15 minutes.");
-        System.out.println("==========================================");
+        log.info(
+                "MOCK EMAIL [password-reset] to={} link={}",
+                email,
+                resetLink
+        );
     }
 }
-
