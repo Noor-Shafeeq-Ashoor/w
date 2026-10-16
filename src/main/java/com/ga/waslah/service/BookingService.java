@@ -11,6 +11,15 @@ import com.ga.waslah.model.User;
 import com.ga.waslah.repository.BookingRepository;
 import com.ga.waslah.repository.StudySpaceRepository;
 import com.ga.waslah.repository.UserRepository;
+import com.ga.waslah.dto.PageResponse;
+import com.ga.waslah.util.PagingUtil;
+import com.ga.waslah.util.Specs;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+
+import java.time.LocalDateTime;
+import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -36,6 +45,144 @@ public class BookingService {
         this.studySpaceRepository = studySpaceRepository;
         this.userRepository = userRepository;
     }
+
+
+    /**Retrieves bookings using optional filters, pagination, and sorting.*/
+    public PageResponse<BookingResponse> getBookings(
+            BookingStatus status,
+            Long studySpaceId,
+            LocalDateTime from,
+            LocalDateTime to,
+            int page,
+            int size,
+            String sort,
+            String direction
+    ) {
+        // Reject a date range that starts after it ends.
+        if (from != null && to != null && from.isAfter(to)) {
+            throw new IllegalArgumentException(
+                    "'from' must be earlier than or equal to 'to'."
+            );
+        }
+
+        // Build the query using only filters the client supplied.
+        Specification<Booking> specification =
+                Specs.<Booking>equal(status, "status")
+                        .and(
+                                Specs.<Booking>equal(
+                                        studySpaceId,
+                                        "studySpace.id"
+                                )
+                        )
+                        .and(
+                                Specs.atLeast(from, "startTime")
+                        )
+                        .and(
+                                Specs.atMost(to, "startTime")
+                        );
+
+        // Accept only the supported sort fields.
+        Pageable pageable = PagingUtil.createPageable(
+                page,
+                size,
+                sort,
+                direction,
+                "startTime",
+                Set.of("startTime", "endTime", "createdAt", "status")
+        );
+
+        // Execute filtering and pagination in the database.
+        Page<Booking> bookingPage = bookingRepository.findAll(
+                specification,
+                pageable
+        );
+
+        // Convert each booking entity to its response DTO.
+        List<BookingResponse> content = bookingPage.getContent()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+
+        // Return the results and pagination metadata.
+        return new PageResponse<>(
+                content,
+                bookingPage.getNumber(),
+                bookingPage.getSize(),
+                bookingPage.getTotalElements(),
+                bookingPage.getTotalPages(),
+                bookingPage.isFirst(),
+                bookingPage.isLast()
+        );
+    }
+
+
+    /**
+     * Retrieves only the authenticated user's bookings with optional filters.
+     */
+    public PageResponse<BookingResponse> getMyBookings(
+            String username,
+            BookingStatus status,
+            Long studySpaceId,
+            LocalDateTime from,
+            LocalDateTime to,
+            int page,
+            int size,
+            String sort,
+            String direction
+    ) {
+        // Validate the date range before querying the database.
+        if (from != null && to != null && from.isAfter(to)) {
+            throw new IllegalArgumentException(
+                    "'from' must be earlier than or equal to 'to'."
+            );
+        }
+
+        // Restrict every result to the authenticated user's bookings.
+        Specification<Booking> specification =
+                Specs.<Booking>equal(username, "user.username")
+                        .and(Specs.equal(status, "status"))
+                        .and(
+                                Specs.equal(
+                                        studySpaceId,
+                                        "studySpace.id"
+                                )
+                        )
+                        .and(Specs.atLeast(from, "startTime"))
+                        .and(Specs.atMost(to, "startTime"));
+
+        Pageable pageable = PagingUtil.createPageable(
+                page,
+                size,
+                sort,
+                direction,
+                "startTime",
+                Set.of("startTime", "endTime", "createdAt", "status")
+        );
+
+        Page<Booking> bookingPage = bookingRepository.findAll(
+                specification,
+                pageable
+        );
+
+        List<BookingResponse> content = bookingPage.getContent()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+
+        return new PageResponse<>(
+                content,
+                bookingPage.getNumber(),
+                bookingPage.getSize(),
+                bookingPage.getTotalElements(),
+                bookingPage.getTotalPages(),
+                bookingPage.isFirst(),
+                bookingPage.isLast()
+        );
+    }
+
+
+
+
 
     // =========================
     // CREATE BOOKING
