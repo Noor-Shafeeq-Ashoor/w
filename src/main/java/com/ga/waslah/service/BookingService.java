@@ -11,12 +11,15 @@ import com.ga.waslah.model.User;
 import com.ga.waslah.repository.BookingRepository;
 import com.ga.waslah.repository.StudySpaceRepository;
 import com.ga.waslah.repository.UserRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 public class BookingService {
 
@@ -38,7 +41,6 @@ public class BookingService {
     // CREATE BOOKING
     // =========================
 
-
     @Transactional
     public BookingResponse createBooking(
             String username,
@@ -54,12 +56,16 @@ public class BookingService {
                         new ResourceNotFoundException("Study space not found"));
 
         if (!request.getEndTime().isAfter(request.getStartTime())) {
+            log.warn("Booking rejected: invalid time range");
+
             throw new IllegalArgumentException(
                     "End time must be after start time"
             );
         }
 
         if (!studySpace.getAvailable()) {
+            log.warn("Booking rejected: study space is unavailable");
+
             throw new ForbiddenException(
                     "This study space is not available"
             );
@@ -78,6 +84,8 @@ public class BookingService {
                         );
 
         if (alreadyBooked) {
+            log.warn("Booking rejected: time slot conflict");
+
             throw new IllegalArgumentException(
                     "This study space is already booked for the selected time"
             );
@@ -90,9 +98,12 @@ public class BookingService {
         booking.setEndTime(request.getEndTime());
         booking.setStatus(BookingStatus.PENDING);
 
-        return toResponse(bookingRepository.save(booking));
-    }
+        Booking savedBooking = bookingRepository.save(booking);
 
+        log.info("Booking created successfully with id={}", savedBooking.getId());
+
+        return toResponse(savedBooking);
+    }
 
     // =========================
     // GET MY BOOKINGS
@@ -100,11 +111,15 @@ public class BookingService {
 
     public List<BookingResponse> getMyBookings(String username) {
 
-        return bookingRepository
+        List<BookingResponse> bookings = bookingRepository
                 .findByUser_Username(username)
                 .stream()
                 .map(this::toResponse)
                 .toList();
+
+        log.debug("Retrieved bookings for user");
+
+        return bookings;
     }
 
     // =========================
@@ -123,6 +138,8 @@ public class BookingService {
                         ));
 
         checkOwnership(booking, username);
+
+        log.debug("Booking retrieved successfully with id={}", id);
 
         return toResponse(booking);
     }
@@ -147,6 +164,8 @@ public class BookingService {
 
         // A completed booking cannot be cancelled.
         if (booking.getStatus() == BookingStatus.COMPLETED) {
+            log.warn("Booking cancellation rejected: booking is completed");
+
             throw new ForbiddenException(
                     "Completed bookings cannot be cancelled"
             );
@@ -154,6 +173,8 @@ public class BookingService {
 
         // A cancelled booking cannot be cancelled again.
         if (booking.getStatus() == BookingStatus.CANCELLED) {
+            log.warn("Booking cancellation rejected: already cancelled");
+
             throw new ForbiddenException(
                     "Booking is already cancelled"
             );
@@ -161,9 +182,11 @@ public class BookingService {
 
         booking.setStatus(BookingStatus.CANCELLED);
 
-        return toResponse(
-                bookingRepository.save(booking)
-        );
+        Booking savedBooking = bookingRepository.save(booking);
+
+        log.info("Booking cancelled successfully with id={}", id);
+
+        return toResponse(savedBooking);
     }
 
     // =========================
@@ -178,6 +201,8 @@ public class BookingService {
         if (!booking.getUser()
                 .getUsername()
                 .equals(username)) {
+
+            log.warn("Booking access denied: ownership check failed");
 
             throw new ForbiddenException(
                     "You are not allowed to access this booking"

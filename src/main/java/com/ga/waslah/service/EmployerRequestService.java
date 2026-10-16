@@ -9,11 +9,22 @@ import com.ga.waslah.model.Role;
 import com.ga.waslah.model.User;
 import com.ga.waslah.repository.EmployerRequestRepository;
 import com.ga.waslah.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * Handles employer requests, including submission, retrieval,
+ * approval, and rejection.
+ *
+ * Approved requests grant the requesting user the EMPLOYER role.
+ */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmployerRequestService {
@@ -21,6 +32,21 @@ public class EmployerRequestService {
     private final EmployerRequestRepository employerRequestRepository;
     private final UserRepository userRepository;
 
+    /**
+     * Submits an employer request for an existing user.
+     *
+     * A user cannot submit another request while one is pending
+     * or after a request has been approved. A rejected request
+     * may be replaced with a new request.
+     *
+     * @param username the username of the requesting user
+     * @param request the company details submitted for approval
+     * @return the saved employer request
+     * @throws ResourceNotFoundException if the user does not exist
+     * @throws ConflictException if the user is already an employer
+     *         or has a pending or approved request
+     */
+    @Transactional
     public EmployerRequest createRequest(
             String username,
             EmployerRequestRequest request
@@ -30,8 +56,10 @@ public class EmployerRequestService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("User not found"));
 
-        // An existing employer does not need to submit a request.
+        // Existing employers do not need to request the role again.
         if (user.getRole() == Role.EMPLOYER) {
+            log.warn("Employer request rejected: user already has employer role");
+
             throw new ConflictException(
                     "You are already an employer"
             );
@@ -45,18 +73,22 @@ public class EmployerRequestService {
             EmployerRequest oldRequest = existingRequest.get();
 
             if (oldRequest.getStatus() == EmployerRequestStatus.PENDING) {
+                log.warn("Employer request rejected: pending request already exists");
+
                 throw new ConflictException(
                         "You already have a pending employer request"
                 );
             }
 
             if (oldRequest.getStatus() == EmployerRequestStatus.APPROVED) {
+                log.warn("Employer request rejected: request already approved");
+
                 throw new ConflictException(
                         "Your employer request has already been approved"
                 );
             }
 
-            // REJECTED → allow a new request.
+            // A rejected request can be replaced by a new submission.
             employerRequestRepository.delete(oldRequest);
         }
 
@@ -73,26 +105,63 @@ public class EmployerRequestService {
         employerRequest.setStatus(EmployerRequestStatus.PENDING);
         employerRequest.setUser(user);
 
-        return employerRequestRepository.save(employerRequest);
+        EmployerRequest savedRequest =
+                employerRequestRepository.save(employerRequest);
+
+        log.info("Employer request submitted successfully with id={}",
+                savedRequest.getId());
+
+        return savedRequest;
     }
 
+    /**
+     * Retrieves the employer request belonging to a user.
+     *
+     * @param username the username of the requesting user
+     * @return the user's employer request
+     * @throws ResourceNotFoundException if no request exists
+     */
     public EmployerRequest getMyRequest(String username) {
 
-        return employerRequestRepository
+        EmployerRequest request = employerRequestRepository
                 .findByUserUsername(username)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Employer request not found"
                         ));
+
+        log.debug("Employer request retrieved successfully");
+
+        return request;
     }
 
+    /**
+     * Retrieves all employer requests awaiting an administrator's decision.
+     *
+     * @return a list of pending employer requests
+     */
     public List<EmployerRequest> getPendingRequests() {
 
-        return employerRequestRepository.findByStatus(
-                EmployerRequestStatus.PENDING
-        );
+        List<EmployerRequest> requests =
+                employerRequestRepository.findByStatus(
+                        EmployerRequestStatus.PENDING
+                );
+
+        log.debug("Retrieved pending employer requests");
+
+        return requests;
     }
 
+    /**
+     * Approves a pending employer request and grants the user
+     * the EMPLOYER role.
+     *
+     * @param requestId the ID of the request to approve
+     * @return the approved employer request
+     * @throws ResourceNotFoundException if the request does not exist
+     * @throws ConflictException if the request has already been processed
+     */
+    @Transactional
     public EmployerRequest approveRequest(Long requestId) {
 
         EmployerRequest request =
@@ -102,7 +171,10 @@ public class EmployerRequestService {
                                         "Employer request not found"
                                 ));
 
+        // Only pending requests can be approved.
         if (request.getStatus() != EmployerRequestStatus.PENDING) {
+            log.warn("Employer request approval rejected: request already processed");
+
             throw new ConflictException(
                     "Employer request has already been processed"
             );
@@ -110,14 +182,30 @@ public class EmployerRequestService {
 
         request.setStatus(EmployerRequestStatus.APPROVED);
 
+        // Grant the employer role only after approval.
         User user = request.getUser();
         user.setRole(Role.EMPLOYER);
 
         userRepository.save(user);
 
-        return employerRequestRepository.save(request);
+        EmployerRequest approvedRequest =
+                employerRequestRepository.save(request);
+
+        log.info("Employer request approved successfully with id={}",
+                requestId);
+
+        return approvedRequest;
     }
 
+    /**
+     * Rejects a pending employer request without changing the user's role.
+     *
+     * @param requestId the ID of the request to reject
+     * @return the rejected employer request
+     * @throws ResourceNotFoundException if the request does not exist
+     * @throws ConflictException if the request has already been processed
+     */
+    @Transactional
     public EmployerRequest rejectRequest(Long requestId) {
 
         EmployerRequest request =
@@ -127,7 +215,10 @@ public class EmployerRequestService {
                                         "Employer request not found"
                                 ));
 
+        // Only pending requests can be rejected.
         if (request.getStatus() != EmployerRequestStatus.PENDING) {
+            log.warn("Employer request rejection rejected: request already processed");
+
             throw new ConflictException(
                     "Employer request has already been processed"
             );
@@ -135,6 +226,12 @@ public class EmployerRequestService {
 
         request.setStatus(EmployerRequestStatus.REJECTED);
 
-        return employerRequestRepository.save(request);
+        EmployerRequest rejectedRequest =
+                employerRequestRepository.save(request);
+
+        log.info("Employer request rejected successfully with id={}",
+                requestId);
+
+        return rejectedRequest;
     }
 }
