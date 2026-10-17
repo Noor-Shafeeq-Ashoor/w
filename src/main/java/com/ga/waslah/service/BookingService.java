@@ -17,6 +17,8 @@ import com.ga.waslah.util.Specs;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import com.ga.waslah.event.BookingCreatedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -36,17 +38,21 @@ public class BookingService {
     private final StudySpaceRepository studySpaceRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public BookingService(
             BookingRepository bookingRepository,
             StudySpaceRepository studySpaceRepository,
             UserRepository userRepository,
-            AuditService auditService
+            AuditService auditService,
+            ApplicationEventPublisher eventPublisher
+
     ) {
         this.bookingRepository = bookingRepository;
         this.studySpaceRepository = studySpaceRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.eventPublisher = eventPublisher;
     }
 
 
@@ -249,6 +255,16 @@ public class BookingService {
         booking.setStatus(BookingStatus.PENDING);
 
         Booking savedBooking = bookingRepository.save(booking);
+        eventPublisher.publishEvent(
+                new BookingCreatedEvent(
+                        savedBooking.getId(),
+                        savedBooking.getUser().getUsername(),
+                        savedBooking.getStudySpace()
+                                .getCafe()
+                                .getManager()
+                                .getUsername()
+                )
+        );
 
         auditService.log(
                 username,
