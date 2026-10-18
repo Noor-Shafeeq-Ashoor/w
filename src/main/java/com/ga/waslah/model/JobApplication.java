@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
                 )
         }
 )
-public class JobApplication {
+public class JobApplication extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @ToString
 @Entity
 @Table(name = "jobs")
-public class Job {
+public class Job extends AuditableEntity{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
