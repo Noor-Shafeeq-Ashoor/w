@@ -16,14 +16,14 @@ import java.util.UUID;
 public class EmailVerificationService {
 
     private final EmailVerificationTokenRepository tokenRepository;
-    private final MockEmailService mockEmailService;
+    private final EmailService emailService;
 
     public EmailVerificationService(
             EmailVerificationTokenRepository tokenRepository,
-            MockEmailService mockEmailService
+            EmailService emailService
     ) {
         this.tokenRepository = tokenRepository;
-        this.mockEmailService = mockEmailService;
+        this.emailService = emailService;
     }
 
     public void createAndSendVerificationToken(User user) {
@@ -49,7 +49,7 @@ public class EmailVerificationService {
                 "http://localhost:8080/auth/verify-email?token="
                         + tokenValue;
 
-        mockEmailService.sendVerificationEmail(
+        emailService.sendVerificationEmail(
                 user.getEmail(),
                 verificationLink
         );

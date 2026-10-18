@@ -18,18 +18,18 @@ public class PasswordResetService {
 
     private final PasswordResetTokenRepository tokenRepository;
     private final UserRepository userRepository;
-    private final MockEmailService mockEmailService;
+    private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
 
     public PasswordResetService(
             PasswordResetTokenRepository tokenRepository,
             UserRepository userRepository,
-            MockEmailService mockEmailService,
+            EmailService emailService,
             PasswordEncoder passwordEncoder
     ) {
         this.tokenRepository = tokenRepository;
         this.userRepository = userRepository;
-        this.mockEmailService = mockEmailService;
+        this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -63,7 +63,7 @@ public class PasswordResetService {
                 "http://localhost:8080/auth/reset-password?token="
                         + tokenValue;
 
-        mockEmailService.sendPasswordResetEmail(
+        emailService.sendPasswordResetEmail(
                 user.getEmail(),
                 resetLink
         );
